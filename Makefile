@@ -4,6 +4,7 @@ APPS = app/udpc.exe \
        app/tcps.exe \
 
 TESTS = test/test.exe \
+        test/step0.exe \
 
 DRIVERS = driver/null.o \
           driver/loopback.o \
