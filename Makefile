@@ -5,9 +5,11 @@ APPS = app/udpc.exe \
 
 TESTS = test/test.exe \
         test/step0.exe \
+        test/step1.exe \
 
 DRIVERS = driver/null.o \
           driver/loopback.o \
+          driver/dummy.o \
 
 OBJS = util.o \
        net.o \
