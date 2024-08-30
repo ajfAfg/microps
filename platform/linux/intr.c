@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -10,7 +11,8 @@
 #include "util.h"
 #include "net.h"
 
-struct irq_entry {
+struct irq_entry
+{
     struct irq_entry *next;
     unsigned int irq;
     int (*handler)(unsigned int irq, void *dev);
@@ -19,31 +21,37 @@ struct irq_entry {
     void *dev;
 };
 
-sigset_t sigmask;
+static sigset_t sigmask;
 struct irq_entry *irq_vec;
 
-int
-intr_request_irq(unsigned int irq, int (*handler)(unsigned int irq, void *dev), int flags, const char *name, void *dev)
+static pthread_t tid;
+static pthread_barrier_t barrier;
+
+int intr_request_irq(unsigned int irq, int (*handler)(unsigned int irq, void *dev), int flags, const char *name, void *dev)
 {
     debugf("irq=%u, handler=%p, flags=%d, name=%s, dev=%p", irq, handler, flags, name, dev);
     struct irq_entry *entry;
-    for (entry = irq_vec; entry; entry = entry->next) {
-        if (entry->irq == irq) {
-            if (entry->flags ^ NET_IRQ_SHARED || flags ^ NET_IRQ_SHARED) {
+    for (entry = irq_vec; entry; entry = entry->next)
+    {
+        if (entry->irq == irq)
+        {
+            if (entry->flags ^ NET_IRQ_SHARED || flags ^ INTR_IRQ_SHARED)
+            {
                 errorf("conflicts with already registered IRQs");
                 return -1;
             }
         }
     }
     entry = memory_alloc(sizeof(*entry));
-    if (!entry) {
+    if (!entry)
+    {
         errorf("memory_alloc() failure");
         return -1;
     }
     entry->irq = irq;
     entry->handler = handler;
     entry->flags = flags;
-    strncpy(entry->name, name, sizeof(entry->name)-1);
+    strncpy(entry->name, name, sizeof(entry->name) - 1);
     entry->dev = dev;
     entry->next = irq_vec;
     irq_vec = entry;
@@ -57,11 +65,13 @@ intr_timer_setup(struct itimerspec *interval)
 {
     timer_t id;
 
-    if (timer_create(CLOCK_REALTIME, NULL, &id) == -1) {
+    if (timer_create(CLOCK_REALTIME, NULL, &id) == -1)
+    {
         errorf("timer_create: %s", strerror(errno));
         return -1;
     }
-    if (timer_settime(id, 0, interval, NULL) == -1) {
+    if (timer_settime(id, 0, interval, NULL) == -1)
+    {
         errorf("timer_settime: %s", strerror(errno));
         return -1;
     }
@@ -73,19 +83,27 @@ intr_thread(void *arg)
 {
     struct timespec ts = {0, 1000000}; // 1ms
     struct itimerspec interval = {ts, ts};
-    int sig, err;
+
+    int terminate = 0, sig, err;
     struct irq_entry *entry;
 
-    if (intr_timer_setup(&interval) == -1) {
+    debugf("start...");
+    pthread_barrier_wait(&barrier);
+
+    if (intr_timer_setup(&interval) == -1)
+    {
         return NULL;
     }
-    while (1) {
+    while (!terminate)
+    {
         err = sigwait(&sigmask, &sig);
-        if (err) {
+        if (err)
+        {
             errorf("sigwait() %s", strerror(err));
             break;
         }
-        switch (sig) {
+        switch (sig)
+        {
         case SIGUSR1:
             net_protocol_handler();
             break;
@@ -95,9 +113,14 @@ intr_thread(void *arg)
         case SIGALRM:
             net_timer_handler();
             break;
+        case SIGHUP:
+            terminate = 1;
+            break;
         default:
-            for (entry = irq_vec; entry; entry = entry->next) {
-                if (entry->irq == (unsigned int)sig) {
+            for (entry = irq_vec; entry; entry = entry->next)
+            {
+                if (entry->irq == (unsigned int)sig)
+                {
                     debugf("irq=%d, name=%s", entry->irq, entry->name);
                     entry->handler(entry->irq, entry->dev);
                 }
@@ -105,35 +128,53 @@ intr_thread(void *arg)
             break;
         }
     }
+    debugf("terminated");
     return NULL;
 }
 
-pthread_t tid;
-
-int
-intr_run(void)
+int intr_run(void)
 {
     int err;
 
     err = pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
-    if (err) {
+    if (err)
+    {
         errorf("pthread_sigmask() %s", strerror(err));
         return -1;
     }
     err = pthread_create(&tid, NULL, intr_thread, NULL);
-    if (err) {
+    if (err)
+    {
         errorf("pthread_create() %s", strerror(err));
         return -1;
     }
+    pthread_barrier_wait(&barrier);
     return 0;
 }
 
-int
-intr_init(void)
+void intr_shutdown(void)
 {
+    if (pthread_equal(tid, pthread_self()) != 0)
+    {
+        /* Thread not created */
+        return;
+    }
+    pthread_kill(tid, SIGHUP);
+    pthread_join(tid, NULL);
+}
+
+int intr_init(void)
+{
+    tid = pthread_self();
+    pthread_barrier_init(&barrier, NULL, 2);
     sigemptyset(&sigmask);
     sigaddset(&sigmask, SIGUSR1);
     sigaddset(&sigmask, SIGUSR2);
     sigaddset(&sigmask, SIGALRM);
     return 0;
+}
+
+int intr_raise_irq(unsigned int irq)
+{
+    return pthread_kill(tid, (int)irq);
 }
