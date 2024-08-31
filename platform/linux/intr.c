@@ -105,7 +105,8 @@ intr_thread(void *arg)
         switch (sig)
         {
         case SIGUSR1:
-            net_protocol_handler();
+            // net_protocol_handler();
+            net_softirq_handler();
             break;
         case SIGUSR2:
             net_event_handler();

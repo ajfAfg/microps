@@ -308,73 +308,76 @@ ip_iface_select(ip_addr_t addr)
 static void
 ip_input(const uint8_t *data, size_t len, struct net_device *dev)
 {
-    struct ip_hdr *hdr;
-    uint8_t v;
-    uint16_t hlen, total, offset;
-    struct ip_iface *iface;
-    char addr[IP_ADDR_STR_LEN];
-    struct ip_protocol *proto;
+    debugf("dev=%s, len=%zu", dev->name, len);
+    debugdump(data, len);
 
-    if (len < IP_HDR_SIZE_MIN)
-    {
-        errorf("too short");
-        return;
-    }
-    hdr = (struct ip_hdr *)data;
-    v = hdr->vhl >> 4;
-    if (v != IP_VERSION_IPV4)
-    {
-        errorf("ip version error: v=%u", v);
-        return;
-    }
-    hlen = (hdr->vhl & 0x0f) << 2;
-    if (len < hlen)
-    {
-        errorf("header length error: hlen=%u, len=%zu", hlen, len);
-        return;
-    }
-    total = ntoh16(hdr->total);
-    if (len < total)
-    {
-        errorf("total length error: total=%u, len=%zu", total, len);
-        return;
-    }
-    if (cksum16((uint16_t *)hdr, hlen, 0) != 0)
-    {
-        errorf("checksum error: sum=0x%04x, verify=0x%04x", ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)hdr, hlen, -hdr->sum)));
-        return;
-    }
-    offset = ntoh16(hdr->offset);
-    if (offset & 0x2000 || offset & 0x1fff)
-    {
-        errorf("fragments does not support");
-        return;
-    }
-    iface = (struct ip_iface *)net_device_get_iface(dev, NET_IFACE_FAMILY_IP);
-    if (!iface)
-    {
-        /* iface is not registered to the device */
-        return;
-    }
-    if (hdr->dst != iface->unicast)
-    {
-        if (hdr->dst != iface->broadcast && hdr->dst != IP_ADDR_BROADCAST)
-        {
-            /* for other host */
-            return;
-        }
-    }
-    debugf("dev=%s, iface=%s, protocol=%s(0x%02x), len=%u",
-           dev->name, ip_addr_ntop(iface->unicast, addr, sizeof(addr)), ip_protocol_name(hdr->protocol), hdr->protocol, total);
-    ip_dump(data, total);
-    for (proto = protocols; proto; proto = proto->next)
-    {
-        if (proto->type == hdr->protocol)
-        {
-            proto->handler((uint8_t *)hdr + hlen, total - hlen, hdr->src, hdr->dst, iface);
-            return;
-        }
-    }
+    //     struct ip_hdr *hdr;
+    //     uint8_t v;
+    //     uint16_t hlen, total, offset;
+    //     struct ip_iface *iface;
+    //     char addr[IP_ADDR_STR_LEN];
+    //     struct ip_protocol *proto;
+    //
+    //     if (len < IP_HDR_SIZE_MIN)
+    //     {
+    //         errorf("too short");
+    //         return;
+    //     }
+    //     hdr = (struct ip_hdr *)data;
+    //     v = hdr->vhl >> 4;
+    //     if (v != IP_VERSION_IPV4)
+    //     {
+    //         errorf("ip version error: v=%u", v);
+    //         return;
+    //     }
+    //     hlen = (hdr->vhl & 0x0f) << 2;
+    //     if (len < hlen)
+    //     {
+    //         errorf("header length error: hlen=%u, len=%zu", hlen, len);
+    //         return;
+    //     }
+    //     total = ntoh16(hdr->total);
+    //     if (len < total)
+    //     {
+    //         errorf("total length error: total=%u, len=%zu", total, len);
+    //         return;
+    //     }
+    //     if (cksum16((uint16_t *)hdr, hlen, 0) != 0)
+    //     {
+    //         errorf("checksum error: sum=0x%04x, verify=0x%04x", ntoh16(hdr->sum), ntoh16(cksum16((uint16_t *)hdr, hlen, -hdr->sum)));
+    //         return;
+    //     }
+    //     offset = ntoh16(hdr->offset);
+    //     if (offset & 0x2000 || offset & 0x1fff)
+    //     {
+    //         errorf("fragments does not support");
+    //         return;
+    //     }
+    //     iface = (struct ip_iface *)net_device_get_iface(dev, NET_IFACE_FAMILY_IP);
+    //     if (!iface)
+    //     {
+    //         /* iface is not registered to the device */
+    //         return;
+    //     }
+    //     if (hdr->dst != iface->unicast)
+    //     {
+    //         if (hdr->dst != iface->broadcast && hdr->dst != IP_ADDR_BROADCAST)
+    //         {
+    //             /* for other host */
+    //             return;
+    //         }
+    //     }
+    //     debugf("dev=%s, iface=%s, protocol=%s(0x%02x), len=%u",
+    //            dev->name, ip_addr_ntop(iface->unicast, addr, sizeof(addr)), ip_protocol_name(hdr->protocol), hdr->protocol, total);
+    //     ip_dump(data, total);
+    //     for (proto = protocols; proto; proto = proto->next)
+    //     {
+    //         if (proto->type == hdr->protocol)
+    //         {
+    //             proto->handler((uint8_t *)hdr + hlen, total - hlen, hdr->src, hdr->dst, iface);
+    //             return;
+    //         }
+    //     }
     /* unsupported protocol */
 }
 
