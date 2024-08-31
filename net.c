@@ -25,6 +25,7 @@ struct net_protocol_queue_entry
 {
     struct net_device *dev;
     size_t len;
+    uint8_t data[];
 };
 
 struct net_timer
@@ -195,7 +196,7 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
             }
             entry->dev = dev;
             entry->len = len;
-            memcpy(entry + 1, data, len);
+            memcpy(entry->data, data, len);
             if (!queue_push(&proto->queue, entry))
             {
                 errorf("queue_push() failure");
