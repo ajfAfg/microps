@@ -205,11 +205,35 @@ int net_input_handler(uint16_t type, const uint8_t *data, size_t len, struct net
             }
             debugf("queue pushed (num:%u), dev=%s, type=%s(0x%04x), len=%zd", proto->queue.num, dev->name, proto->name, type, len);
             debugdump(data, len);
-            raise_softirq();
+            // raise_softirq();
+            intr_raise_irq(INTR_IRQ_SOFTIRQ);
             return 0;
         }
     }
     /* unsupported protocol */
+    return 0;
+}
+
+int net_softirq_handler(void)
+{
+    struct net_protocol *proto;
+    struct net_protocol_queue_entry *entry;
+
+    for (proto = protocols; proto; proto = proto->next)
+    {
+        while (1)
+        {
+            entry = queue_pop(&proto->queue);
+            if (!entry)
+            {
+                break;
+            }
+            debugf("queue poped (num:%u), dev=%s, type=%s(0x%04x), len=%zd", proto->queue.num, entry->dev->name, proto->name, proto->type, entry->len);
+            debugdump(entry->data, entry->len);
+            proto->handler(entry->data, entry->len, entry->dev);
+            memory_free(entry);
+        }
+    }
     return 0;
 }
 
@@ -256,30 +280,30 @@ net_protocol_name(uint16_t type)
     return "UNKNOWN";
 }
 
-int net_protocol_handler(void)
-{
-    struct net_protocol *proto;
-    struct net_protocol_queue_entry *entry;
-    unsigned int num;
-
-    for (proto = protocols; proto; proto = proto->next)
-    {
-        while (1)
-        {
-            entry = queue_pop(&proto->queue);
-            if (!entry)
-            {
-                break;
-            }
-            num = proto->queue.num;
-            debugf("queue popped (num:%u), dev=%s, type=0x%04x, len=%zd", num, entry->dev->name, proto->type, entry->len);
-            debugdump((uint8_t *)(entry + 1), entry->len);
-            proto->handler((uint8_t *)(entry + 1), entry->len, entry->dev);
-            free(entry);
-        }
-    }
-    return 0;
-}
+// int net_protocol_handler(void)
+// {
+//     struct net_protocol *proto;
+//     struct net_protocol_queue_entry *entry;
+//     unsigned int num;
+//
+//     for (proto = protocols; proto; proto = proto->next)
+//     {
+//         while (1)
+//         {
+//             entry = queue_pop(&proto->queue);
+//             if (!entry)
+//             {
+//                 break;
+//             }
+//             num = proto->queue.num;
+//             debugf("queue popped (num:%u), dev=%s, type=0x%04x, len=%zd", num, entry->dev->name, proto->type, entry->len);
+//             debugdump((uint8_t *)(entry + 1), entry->len);
+//             proto->handler((uint8_t *)(entry + 1), entry->len, entry->dev);
+//             free(entry);
+//         }
+//     }
+//     return 0;
+// }
 
 /* NOTE: must not be call after net_run() */
 int net_timer_register(const char *name, struct timeval interval, void (*handler)(void))
