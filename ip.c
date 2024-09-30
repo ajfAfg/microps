@@ -313,7 +313,7 @@ ip_input(const uint8_t *data, size_t len, struct net_device *dev)
     uint16_t hlen, total, offset;
     struct ip_iface *iface;
     char addr[IP_ADDR_STR_LEN];
-    //     struct ip_protocol *proto;
+    struct ip_protocol *proto;
 
     if (len < IP_HDR_SIZE_MIN)
     {
@@ -367,14 +367,14 @@ ip_input(const uint8_t *data, size_t len, struct net_device *dev)
     debugf("dev=%s, iface=%s, protocol=%s(0x%02x), len=%u",
            dev->name, ip_addr_ntop(iface->unicast, addr, sizeof(addr)), ip_protocol_name(hdr->protocol), hdr->protocol, total);
     ip_dump(data, total);
-    //     for (proto = protocols; proto; proto = proto->next)
-    //     {
-    //         if (proto->type == hdr->protocol)
-    //         {
-    //             proto->handler((uint8_t *)hdr + hlen, total - hlen, hdr->src, hdr->dst, iface);
-    //             return;
-    //         }
-    //     }
+    for (proto = protocols; proto; proto = proto->next)
+    {
+        if (proto->type == hdr->protocol)
+        {
+            proto->handler((uint8_t *)hdr + hlen, total - hlen, hdr->src, hdr->dst, iface);
+            return;
+        }
+    }
     /* unsupported protocol */
 }
 
