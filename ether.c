@@ -8,7 +8,8 @@
 #include "net.h"
 #include "ether.h"
 
-struct ether_hdr {
+struct ether_hdr
+{
     uint8_t dst[ETHER_ADDR_LEN];
     uint8_t src[ETHER_ADDR_LEN];
     uint16_t type;
@@ -17,34 +18,38 @@ struct ether_hdr {
 const uint8_t ETHER_ADDR_ANY[ETHER_ADDR_LEN] = {"\x00\x00\x00\x00\x00\x00"};
 const uint8_t ETHER_ADDR_BROADCAST[ETHER_ADDR_LEN] = {"\xff\xff\xff\xff\xff\xff"};
 
-int
-ether_addr_pton(const char *p, uint8_t *n)
+int ether_addr_pton(const char *p, uint8_t *n)
 {
     int index;
     char *ep;
     long val;
 
-    if (!p || !n) {
+    if (!p || !n)
+    {
         return -1;
     }
-    for (index = 0; index < ETHER_ADDR_LEN; index++) {
+    for (index = 0; index < ETHER_ADDR_LEN; index++)
+    {
         val = strtol(p, &ep, 16);
-        if (ep == p || val < 0 || val > 0xff || (index < ETHER_ADDR_LEN - 1 && *ep != ':')) {
+        if (ep == p || val < 0 || val > 0xff || (index < ETHER_ADDR_LEN - 1 && *ep != ':'))
+        {
             break;
         }
         n[index] = (uint8_t)val;
         p = ep + 1;
     }
-    if (index != ETHER_ADDR_LEN || *ep != '\0') {
+    if (index != ETHER_ADDR_LEN || *ep != '\0')
+    {
         return -1;
     }
-    return  0;
+    return 0;
 }
 
 static const char *
 ether_type_ntoa(uint16_t type)
 {
-    switch (ntoh16(type)) {
+    switch (ntoh16(type))
+    {
     case ETHER_TYPE_IP:
         return "IP";
     case ETHER_TYPE_ARP:
@@ -58,7 +63,8 @@ ether_type_ntoa(uint16_t type)
 char *
 ether_addr_ntop(const uint8_t *n, char *p, size_t size)
 {
-    if (!n || !p) {
+    if (!n || !p)
+    {
         return NULL;
     }
     snprintf(p, size, "%02x:%02x:%02x:%02x:%02x:%02x", n[0], n[1], n[2], n[3], n[4], n[5]);
@@ -82,8 +88,7 @@ ether_dump(const uint8_t *frame, size_t flen)
     funlockfile(stderr);
 }
 
-int
-ether_transmit_helper(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst, ssize_t (*callback)(struct net_device *dev, const uint8_t *data, size_t len))
+int ether_transmit_helper(struct net_device *dev, uint16_t type, const uint8_t *data, size_t len, const void *dst, ssize_t (*callback)(struct net_device *dev, const uint8_t *data, size_t len))
 {
     uint8_t frame[ETHER_FRAME_SIZE_MAX] = {};
     struct ether_hdr *hdr;
@@ -94,7 +99,8 @@ ether_transmit_helper(struct net_device *dev, uint16_t type, const uint8_t *data
     memcpy(hdr->src, dev->addr, ETHER_ADDR_LEN);
     hdr->type = hton16(type);
     memcpy(hdr + 1, data, len);
-    if (len < ETHER_PAYLOAD_SIZE_MIN) {
+    if (len < ETHER_PAYLOAD_SIZE_MIN)
+    {
         pad = ETHER_PAYLOAD_SIZE_MIN - len;
     }
     flen = sizeof(*hdr) + len + pad;
@@ -103,8 +109,7 @@ ether_transmit_helper(struct net_device *dev, uint16_t type, const uint8_t *data
     return callback(dev, frame, flen) == (ssize_t)flen ? 0 : -1;
 }
 
-int
-ether_poll_helper(struct net_device *dev, ssize_t (*callback)(struct net_device *dev, uint8_t *buf, size_t size))
+int ether_poll_helper(struct net_device *dev, ssize_t (*callback)(struct net_device *dev, uint8_t *buf, size_t size))
 {
     uint8_t frame[ETHER_FRAME_SIZE_MAX];
     ssize_t flen;
@@ -112,13 +117,16 @@ ether_poll_helper(struct net_device *dev, ssize_t (*callback)(struct net_device 
     uint16_t type;
 
     flen = callback(dev, frame, sizeof(frame));
-    if (flen < (ssize_t)sizeof(*hdr)) {
+    if (flen < (ssize_t)sizeof(*hdr))
+    {
         errorf("input data is too short");
         return -1;
     }
     hdr = (struct ether_hdr *)frame;
-    if (memcmp(dev->addr, hdr->dst, ETHER_ADDR_LEN) != 0) {
-        if (memcmp(ETHER_ADDR_BROADCAST, hdr->dst, ETHER_ADDR_LEN) != 0) {
+    if (memcmp(dev->addr, hdr->dst, ETHER_ADDR_LEN) != 0)
+    {
+        if (memcmp(ETHER_ADDR_BROADCAST, hdr->dst, ETHER_ADDR_LEN) != 0)
+        {
             /* for other host */
             return -1;
         }
@@ -129,8 +137,7 @@ ether_poll_helper(struct net_device *dev, ssize_t (*callback)(struct net_device 
     return net_input_handler(type, (uint8_t *)(hdr + 1), flen - sizeof(*hdr), dev);
 }
 
-void
-ether_setup_helper(struct net_device *dev)
+void ether_setup_helper(struct net_device *dev)
 {
     dev->type = NET_DEVICE_TYPE_ETHERNET;
     dev->mtu = ETHER_PAYLOAD_SIZE_MAX;
