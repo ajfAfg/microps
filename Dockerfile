@@ -5,4 +5,6 @@ RUN apt-get update && apt-get install -y \
     git \
     iproute2 \
     iputils-ping \
-    netcat-openbsd
+    netcat-openbsd \
+    iptables \
+    iptables-persistent
