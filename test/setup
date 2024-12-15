@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# c.f. https://docs.google.com/presentation/d/1_fTLvWuNkJ0cpQFKQ1m-J58nAX2kCSe8DujD7RiyStA/edit#slide=id.gd3283b5d32_0_1230
+ip tuntap add mode tap user "$(whoami)" name tap0
+ip addr add 192.0.2.1/24 dev tap0
+ip link set tap0 up
+
+# c.f. https://docs.google.com/presentation/d/1YIFecvNASn1iz3ps_OvrXoL02IJ-cs6_i8WBkukMKpo/edit#slide=id.g116b97995d9_0_288
+echo 1 >/proc/sys/net/ipv4/ip_forward
+iptables -A FORWARD -o tap0 -j ACCEPT
+iptables -A FORWARD -i tap0 -j ACCEPT
+iptables -t nat -A POSTROUTING -s 192.0.2.0/24 -o eth0 -j MASQUERADE
