@@ -410,6 +410,11 @@ void net_shutdown(void)
     debugf("shutdown");
 }
 
+void net_raise_event()
+{
+    intr_raise_irq(INTR_IRQ_EVENT);
+}
+
 #include "arp.h"
 #include "ip.h"
 #include "icmp.h"
