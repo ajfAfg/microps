@@ -32,6 +32,7 @@ TESTS = test/test.exe \
         test/step24.exe \
         test/step25.exe \
         test/step27.exe \
+        test/step28.exe \
 
 DRIVERS = driver/null.o \
           driver/loopback.o \
